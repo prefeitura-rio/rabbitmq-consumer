@@ -14,8 +14,6 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
-ENV RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-ENV QUEUE_NAME=test_queue
-ENV POLL_INTERVAL=10
+EXPOSE 8080
 
 CMD ["uv", "run", "python", "main.py"]
