@@ -1,0 +1,31 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: rabbitmq-consumer
+  namespace: rabbitmq-consumer
+spec:
+  scaleTargetRef:
+    name: rabbitmq-consumer
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: amqp
+        mode: QueueLength
+        value: "5"
+        activationValue: "0"
+        queueName: "eai_gateway"
+      authenticationRef:
+        name: keda-rabbitmq-auth
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-rabbitmq-auth
+  namespace: rabbitmq-consumer
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: rabbitmq-consumer-secrets
+      key: RABBITMQ_URL
