@@ -2,5 +2,76 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ./rabbitmq-consumer.yaml
-  - ./keda.yaml
+  - keda-auth.yaml
+
+helmCharts:
+  - name: base-chart
+    repo: oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts
+    releaseName: rabbitmq-consumer
+    version: 1.1.0
+    namespace: rabbitmq-consumer
+    valuesInline:
+      nameOverride: "rabbitmq-consumer"
+      fullnameOverride: "rabbitmq-consumer"
+      replicaCount: 1
+      image:
+        repository: ghcr.io/prefeitura-rio/rabbitmq-consumer
+        tag: master
+        pullPolicy: Always
+      imagePullSecrets:
+        - name: ghcr-secret
+      service:
+        type: ClusterIP
+        port: 8080
+        containerPort: 8080
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+      livenessProbe:
+        httpGet:
+          path: /health
+        initialDelaySeconds: 15
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        timeoutSeconds: 3
+        failureThreshold: 2
+      envFrom:
+        - secretRef:
+            name: rabbitmq-consumer-secrets
+      scaledObject:
+        enabled: true
+        minReplicaCount: 1
+        maxReplicaCount: 10
+        triggers:
+          - type: rabbitmq
+            metadata:
+              protocol: amqp
+              mode: QueueLength
+              value: "5"
+              activationValue: "0"
+              queueName: "eai_gateway"
+            authenticationRef:
+              name: keda-rabbitmq-auth
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      infisicalSecret:
+        enabled: true
+        secretName: "rabbitmq-consumer-secrets"
+        projectSlug: "rabbitmq-consumer"
+        envSlug: "prod"
+        secretsPath: "/"
+        recursive: true
+        creationPolicy: "Orphan"
+      istio:
+        enabled: false
